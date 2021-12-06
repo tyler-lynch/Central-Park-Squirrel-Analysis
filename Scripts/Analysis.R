@@ -1,4 +1,4 @@
-library(dplyr)
+library(tidyverse)
 library(ggplot2)
 library(sf)
 library(rnaturalearth)
@@ -8,6 +8,12 @@ data <- read.csv(".\\Datasets\\crocwatch-crocodile-sightings-2010-2015.csv")
 
 ### DATA WRANGLING ###
 
+# Renaming relevant variables
+# Focusing on relevant variables
+# Converting data types from char to numeric/date
+# Removing null values
+# Converting yes/no columns to true/false
+# Removing data errors
 data_cleaned <- data%>%rename(long=longitude, lat=latitude, date=Date.Sighted, 
                               species=Species.freshwater.Crocodylus.johnstoni...estuarine...Crocodylus.porsus., 
                               meters=size.of.largest.crocodile..m...estimate.,
@@ -21,7 +27,6 @@ data_cleaned <- data%>%rename(long=longitude, lat=latitude, date=Date.Sighted,
   mutate(exposed=ifelse(exposed == "yes" | exposed == "Yes", T, F), threat=ifelse(threat == "yes" | threat == "Yes", T, F))%>%
   filter(long < 154, lat > -30, amount > 0, meters < 7)
 
-
 summary(data_cleaned)
 
 ### GRAPHS ###
@@ -33,6 +38,14 @@ ggplot(data=data_cleaned, mapping=aes(x=species, fill=threat)) + geom_bar(positi
   theme(plot.title = element_text(hjust = 0.5))
   
 ggsave(filename="./Graphs/Percentage of Threatening Encounters in Relation to Crocodile Species.png")
+
+# Stacked bar graph of threatening sightings based on if fully exposed
+ggplot(data=data_cleaned, mapping=aes(x=exposed, fill=threat)) + geom_bar(position = "fill") +
+  labs(title="Percentage of Threatening Encounters by Exposure", x="Fully Exposed", y="Percentage", fill="Threat") +
+  scale_fill_brewer(palette="Set2") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggsave(filename="./Graphs/Percentage of Threatening Encounters by Exposure.png")
 
 # Box plot of species and their length in meters.
 ggplot(data=data_cleaned, aes(x=species,y=meters, fill="dark green")) + geom_boxplot(show.legend=F) +
@@ -85,3 +98,17 @@ australia_map +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename="./Graphs/Map of Threatening an Non-threatening Sightings.png")
+
+### REGRESSION MODELS ###
+
+lm_data <- data_cleaned%>%select(-date, -amount)
+
+library(MASS)
+
+lm_model <- lm(meters~., lm_data)
+summary(lm_model)
+
+lm_AICmodel <- stepAIC(lm_model, direction="both",  trace=F)
+summary(lm_AICmodel)
+
+detach(package:MASS,unload=TRUE)
