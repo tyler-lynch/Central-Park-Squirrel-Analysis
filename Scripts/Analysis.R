@@ -47,6 +47,19 @@ ggplot(data=data_cleaned, mapping=aes(x=exposed, fill=threat)) + geom_bar(positi
 
 ggsave(filename="./Graphs/Percentage of Threatening Encounters by Exposure.png")
 
+# Time series plot of amount of threats over time.
+# References: https://stackoverflow.com/questions/14549433/count-rows-by-date, 
+# https://kohske.wordpress.com/2010/12/27/faq-geom_line-doesnt-draw-lines/
+# https://stackoverflow.com/questions/22058393/convert-a-numeric-month-to-a-month-abbreviation/22058435
+time_data <- data_cleaned%>%select(date, threat)%>%filter(threat==T)%>%
+  mutate(month=format(date, "%m"), year=format(date, "%Y"))%>%group_by(month, year)%>%
+  summarize(threats=n())%>%mutate(month=as.numeric(month), month=factor(month.abb[month],levels=month.abb))
+ggplot(data=time_data, aes(x=month, y=threats, group=1)) + geom_line(color="red") + geom_point() +
+  labs(title="2020 Threats per Month", x="Month", y="Total Threats") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggsave(filename="./Graphs/2020 Threats per Month.png")
+
 # Box plot of species and their length in meters.
 ggplot(data=data_cleaned, aes(x=species,y=meters, fill="dark green")) + geom_boxplot(show.legend=F) +
   labs(title="Distribution of Length by Species", x="Species", y="Length (meters)") +
@@ -101,6 +114,7 @@ ggsave(filename="./Graphs/Map of Threatening an Non-threatening Sightings.png")
 
 ### REGRESSION MODELS ###
 
+# Linear Regression to predict length based on coordinates, species, and whether it is exposed or a threat
 lm_data <- data_cleaned%>%select(-date, -amount)
 
 library(MASS)
@@ -110,5 +124,22 @@ summary(lm_model)
 
 lm_AICmodel <- stepAIC(lm_model, direction="both",  trace=F)
 summary(lm_AICmodel)
+
+detach(package:MASS,unload=TRUE)
+
+# Logistic Regression to predict whether a crocodile is a threat based on coordinates, species, whether 
+# it is exposed, size, and the amount of crocodiles spotted.
+
+glm_data <- data_cleaned%>%select(-date)%>%mutate(threat=ifelse(threat, 1, 0))
+
+library(MASS)
+
+glm_model <- glm(threat~., glm_data, family="binomial")
+summary(glm_model)
+exp(coef(glm_model))
+
+glm_AICmodel <- stepAIC(glm_model, direction="both",  trace=F)
+summary(glm_AICmodel)
+exp(coef(glm_AICmodel))
 
 detach(package:MASS,unload=TRUE)
